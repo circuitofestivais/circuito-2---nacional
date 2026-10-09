@@ -27,14 +27,15 @@ Planilha original (preservada, somente leitura)
         └────────────────────> importação inicial no Supabase
                                                           │
 Consulta pública <──────── leitura anônima só de ativos ──┤
-Administração ── login por e-mail + RLS ── CRUD/arquivo ──┘
+Administração ── GitHub OAuth + RLS ── CRUD/arquivo ──────┘
 ```
 
 O frontend usa React, TypeScript e Vite. Ele é totalmente estático e usa caminhos compatíveis com o subdiretório `/circuito-2---nacional/` do GitHub Pages. O Supabase é a camada mínima de persistência e autenticação:
 
 - a chave **publishable/anon** pode aparecer no navegador porque não concede privilégios por si só;
 - as políticas de Row Level Security (RLS) permitem ao público apenas ler registros ativos;
-- somente e-mails autenticados que estejam em `admin_users` podem gravar ou ler a lixeira;
+- somente a identidade GitHub permanente `337477512` da conta `circuitofestivais` pode gravar ou ler a lixeira;
+- a autorização consulta `auth.identities.provider_id`, controlado pelo Supabase Auth, e não confia em e-mail, nome de usuário ou metadados editáveis;
 - o frontend não contém token pessoal do GitHub, senha, `service_role`, chave privada ou outro segredo;
 - cada criação, edição, arquivamento e restauração gera um registro em `festival_history`.
 
@@ -88,18 +89,18 @@ O modo de teste da administração só é ativado por `.env.test` durante o Play
 Esta é a única etapa que depende do proprietário do projeto. Ela deve ser feita antes de usar a administração com dados reais.
 
 1. Crie um projeto no [Supabase](https://supabase.com/) e mantenha a região e o plano adequados à política do projeto.
-2. No **SQL Editor**, execute integralmente [`supabase/001_schema.sql`](supabase/001_schema.sql).
-3. No mesmo editor, cadastre o primeiro e-mail autorizado, substituindo pelo endereço correto:
-
-   ```sql
-   insert into public.admin_users (email) values ('seu-email@exemplo.com');
-   ```
-
-4. Em **Authentication → URL Configuration**, defina:
+2. No **SQL Editor**, execute integralmente [`supabase/001_schema.sql`](supabase/001_schema.sql). O arquivo já autoriza exclusivamente o ID GitHub `337477512`, pertencente à conta `circuitofestivais`.
+3. Em **Authentication → URL Configuration**, defina:
    - Site URL: `https://circuitofestivais.github.io/circuito-2---nacional/`
    - Redirect URL permitida: `https://circuitofestivais.github.io/circuito-2---nacional/`
-5. Em **Authentication → Providers → Email**, mantenha o acesso por link mágico/OTP habilitado. Para uso real, configure o provedor de e-mail recomendado pelo Supabase.
-6. Copie apenas a **Project URL** e a **publishable key** (ou `anon` legada) para [`public/config.json`](public/config.json):
+4. Em **Authentication → Providers → GitHub**, copie a **Callback URL** apresentada pelo Supabase. Ela terá o formato `https://SEU-PROJETO.supabase.co/auth/v1/callback`.
+5. Na conta `circuitofestivais`, abra **Settings → Developer settings → OAuth Apps → New OAuth App** e use:
+   - Application name: `Circuito de Festivais`;
+   - Homepage URL: `https://circuitofestivais.github.io/circuito-2---nacional/`;
+   - Authorization callback URL: a Callback URL copiada do Supabase;
+   - Device Flow: desabilitado.
+6. No GitHub, copie o **Client ID** e gere um **Client secret**. Cole ambos somente em **Supabase → Authentication → Providers → GitHub**, ative o provedor e salve. O Client secret nunca deve entrar no repositório.
+7. Copie apenas a **Project URL** e a **publishable key** (ou `anon` legada) para [`public/config.json`](public/config.json):
 
    ```json
    {
@@ -110,18 +111,21 @@ Esta é a única etapa que depende do proprietário do projeto. Ela deve ser fei
    }
    ```
 
-7. Faça commit e envie essa configuração pública. **Nunca** use `service_role`, senha do banco, token pessoal, chave secreta ou privada nesse arquivo.
-8. Abra `https://circuitofestivais.github.io/circuito-2---nacional/#admin`, solicite o link de acesso e clique em **Importar planilha verificada**. O botão só aparece enquanto a tabela online estiver vazia.
+8. Faça commit e envie essa configuração pública. **Nunca** use `service_role`, senha do banco, Client secret do GitHub, token pessoal, chave secreta ou privada nesse arquivo.
+9. Abra `https://circuitofestivais.github.io/circuito-2---nacional/#admin`, clique em **Entrar com GitHub** e autorize o OAuth usando a conta `circuitofestivais`.
+10. Clique em **Importar planilha verificada**. O botão só aparece enquanto a tabela online estiver vazia.
 
-Para autorizar outro administrador, adicione o e-mail pelo SQL Editor. Para revogar acesso sem apagar o cadastro:
+Outras contas GitHub podem chegar à tela de autenticação, mas recebem `403` e as políticas RLS bloqueiam leitura administrativa e escrita. Para revogar o único acesso sem apagar dados:
 
 ```sql
-update public.admin_users set active = false where email = 'pessoa@exemplo.com';
+update public.admin_github_accounts
+set active = false
+where github_user_id = 337477512;
 ```
 
 ### Como editar um festival
 
-1. Entre em `/#admin` com um e-mail autorizado.
+1. Entre em `/#admin` com a conta GitHub `circuitofestivais`.
 2. Localize o registro e clique em **Editar**.
 3. Altere os campos ou notas e clique em **Salvar festival**.
 4. **Cancelar sem salvar** descarta o rascunho e mantém a versão anterior.
@@ -174,7 +178,8 @@ Nenhum caminho depende da raiz do domínio; assets, configuração e dados funci
 - não crie política de escrita para `anon`;
 - não coloque segredos em `config.json`, `.env`, commits, issues ou logs;
 - revogue imediatamente e faça rotação de qualquer segredo publicado por engano;
-- mantenha a allowlist de administradores curta;
+- mantenha somente o ID GitHub `337477512` ativo em `admin_github_accounts`;
+- guarde o Client secret do GitHub exclusivamente no Supabase e faça rotação se ele for exposto;
 - faça exportações periódicas do Supabase e teste restauração;
 - confira `festival_history` quando houver alteração inesperada;
 - rode `pnpm check:data && pnpm test && pnpm build && pnpm check:dist` antes de publicar.

@@ -18,12 +18,17 @@ export class E2EFestivalRepository implements FestivalRepository {
     return true;
   }
   async getSession() {
-    return { user: { email: "teste@circuito.local" } } as unknown as Session;
+    return {
+      user: {
+        email: "teste@circuito.local",
+        user_metadata: { user_name: "circuitofestivais" },
+      },
+    } as unknown as Session;
   }
   async isAdmin() {
     return true;
   }
-  async sendMagicLink() {}
+  async signInWithGitHub() {}
   async signOut() {}
   async list() {
     return read();

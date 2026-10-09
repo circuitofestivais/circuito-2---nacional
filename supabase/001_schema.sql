@@ -1,29 +1,40 @@
 -- Circuito de Festivais — esquema de persistência segura para Supabase.
--- Execute no SQL Editor de um projeto novo. Não contém segredos nem e-mails reais.
+-- Execute no SQL Editor de um projeto novo. Não contém segredos.
+-- O único administrador é a identidade GitHub imutável 337477512
+-- (nome público atual: circuitofestivais).
 
 create extension if not exists pgcrypto;
-create extension if not exists citext;
 
-create table if not exists public.admin_users (
-  email citext primary key,
+create table if not exists public.admin_github_accounts (
+  github_user_id bigint primary key check (github_user_id > 0),
+  github_username text not null,
   active boolean not null default true,
   created_at timestamptz not null default now()
 );
 
-alter table public.admin_users enable row level security;
+insert into public.admin_github_accounts (github_user_id, github_username, active)
+values (337477512, 'circuitofestivais', true)
+on conflict (github_user_id) do update
+set github_username = excluded.github_username,
+    active = excluded.active;
+
+alter table public.admin_github_accounts enable row level security;
 
 create or replace function public.is_circuito_admin()
 returns boolean
 language sql
 stable
 security definer
-set search_path = public
+set search_path = public, auth
 as $$
   select exists (
     select 1
-    from public.admin_users
-    where email = nullif(auth.jwt() ->> 'email', '')::citext
-      and active = true
+    from public.admin_github_accounts admins
+    join auth.identities identities
+      on identities.user_id = auth.uid()
+     and identities.provider = 'github'
+    where admins.github_user_id::text = identities.provider_id
+      and admins.active = true
   );
 $$;
 
@@ -150,16 +161,16 @@ on public.festival_history for select
 to authenticated
 using (public.is_circuito_admin());
 
-drop policy if exists "admins read allowlist" on public.admin_users;
-create policy "admins read allowlist"
-on public.admin_users for select
+drop policy if exists "admins read GitHub allowlist" on public.admin_github_accounts;
+create policy "admins read GitHub allowlist"
+on public.admin_github_accounts for select
 to authenticated
 using (public.is_circuito_admin());
 
 grant select on public.festivals to anon, authenticated;
 grant insert, update on public.festivals to authenticated;
 grant select on public.festival_history to authenticated;
-grant select on public.admin_users to authenticated;
+grant select on public.admin_github_accounts to authenticated;
 
--- Depois de executar este arquivo, adicione o primeiro administrador pelo SQL Editor:
--- insert into public.admin_users (email) values ('seu-email@exemplo.com');
+-- A autorização usa auth.identities.provider_id, mantido pelo Supabase Auth.
+-- Ela não usa e-mail, nome de usuário ou user_metadata alterável pelo usuário.

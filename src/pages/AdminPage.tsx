@@ -36,12 +36,19 @@ function friendlyError(error: unknown) {
   return "Não foi possível concluir a operação.";
 }
 
+function githubAccountLabel(session: Session | null) {
+  const metadata = session?.user.user_metadata;
+  const username = metadata?.user_name ?? metadata?.preferred_username;
+  return typeof username === "string" && username.trim()
+    ? `@${username.trim()}`
+    : "conta GitHub autenticada";
+}
+
 export function AdminPage({ catalog }: { catalog: CatalogPayload }) {
   const repository = useMemo(makeRepository, []);
   const [phase, setPhase] = useState<Phase>("checking");
   const [session, setSession] = useState<Session | null>(null);
   const [records, setRecords] = useState<AdminFestival[]>([]);
-  const [email, setEmail] = useState("");
   const [query, setQuery] = useState("");
   const [showArchived, setShowArchived] = useState(false);
   const [editing, setEditing] = useState<FestivalRecord | null>(null);
@@ -94,16 +101,13 @@ export function AdminPage({ catalog }: { catalog: CatalogPayload }) {
   const activeCount = records.filter((record) => !record.deletedAt).length;
   const archivedCount = records.length - activeCount;
 
-  async function requestAccess(event: React.FormEvent) {
-    event.preventDefault();
+  async function requestGitHubAccess() {
     setBusy(true);
     setError(null);
     try {
-      await repository.sendMagicLink(email.trim());
-      setMessage("Enviamos um link de acesso. Abra-o neste navegador para continuar.");
+      await repository.signInWithGitHub();
     } catch (caught) {
       setError(friendlyError(caught));
-    } finally {
       setBusy(false);
     }
   }
@@ -199,12 +203,9 @@ export function AdminPage({ catalog }: { catalog: CatalogPayload }) {
         {phase === "signed-out" && (
           <section className="admin-gate">
             <span className="gate-number">02</span>
-            <h2>Entrar com e-mail autorizado</h2>
-            <p>O acesso usa um link temporário enviado por e-mail. Apenas endereços cadastrados na lista de administradores podem ler ou alterar a base.</p>
-            <form className="login-form" onSubmit={requestAccess}>
-              <label htmlFor="admin-email">E-mail</label>
-              <div><input id="admin-email" type="email" required value={email} onChange={(event) => setEmail(event.target.value)} placeholder="voce@exemplo.com" /><button className="button" disabled={busy}>{busy ? "Enviando…" : "Enviar link de acesso"}</button></div>
-            </form>
+            <h2>Entrar com a conta proprietária do GitHub</h2>
+            <p>Somente a identidade GitHub permanente da conta <strong>@circuitofestivais</strong> pode ler a lixeira ou alterar a base. Outras contas autenticadas recebem acesso negado.</p>
+            <button className="button" type="button" onClick={() => void requestGitHubAccess()} disabled={busy}>{busy ? "Abrindo GitHub…" : "Entrar com GitHub"}</button>
           </section>
         )}
 
@@ -212,7 +213,7 @@ export function AdminPage({ catalog }: { catalog: CatalogPayload }) {
           <section className="admin-gate">
             <span className="gate-number">403</span>
             <h2>Conta sem permissão</h2>
-            <p>O e-mail <strong>{session?.user.email}</strong> foi autenticado, mas não está na lista de administradores.</p>
+            <p>A conta <strong>{githubAccountLabel(session)}</strong> foi autenticada, mas não corresponde à identidade proprietária autorizada.</p>
             <button className="button button--quiet" type="button" onClick={() => void signOut()}>Sair e usar outra conta</button>
           </section>
         )}
@@ -225,7 +226,7 @@ export function AdminPage({ catalog }: { catalog: CatalogPayload }) {
           <section className="admin-workspace">
             <div className="admin-toolbar">
               <div>
-                <p>Conectado como <strong>{session?.user.email}</strong></p>
+                <p>Conectado como <strong>{githubAccountLabel(session)}</strong></p>
                 <button className="text-button" type="button" onClick={() => void signOut()}>Sair</button>
               </div>
               <button className="button" type="button" onClick={() => setEditing(emptyRecord(records))}>+ Adicionar festival</button>

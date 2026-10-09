@@ -6,7 +6,7 @@ export interface FestivalRepository {
   isConfigured(): boolean;
   getSession(): Promise<Session | null>;
   isAdmin(): Promise<boolean>;
-  sendMagicLink(email: string): Promise<void>;
+  signInWithGitHub(): Promise<void>;
   signOut(): Promise<void>;
   list(): Promise<AdminFestival[]>;
   save(record: FestivalRecord): Promise<void>;
@@ -40,12 +40,15 @@ export class SupabaseFestivalRepository implements FestivalRepository {
     return data === true;
   }
 
-  async sendMagicLink(email: string) {
+  async signInWithGitHub() {
     const client = requireClient();
     const redirectTo = `${window.location.origin}${window.location.pathname}#admin`;
-    const { error } = await client.auth.signInWithOtp({
-      email,
-      options: { emailRedirectTo: redirectTo },
+    const { error } = await client.auth.signInWithOAuth({
+      provider: "github",
+      options: {
+        redirectTo,
+        scopes: "read:user",
+      },
     });
     if (error) throw error;
   }
