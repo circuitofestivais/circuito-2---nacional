@@ -1,0 +1,11 @@
+packages:
+  - .
+
+allowBuilds:
+  esbuild: true
+
+overrides:
+  esbuild: 0.28.2
+
+minimumReleaseAgeExclude:
+  - vite@8.3.4

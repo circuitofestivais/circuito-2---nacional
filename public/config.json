@@ -1,0 +1,6 @@
+{
+  "supabaseUrl": "",
+  "supabasePublishableKey": "",
+  "cacheTtlMinutes": 15,
+  "maxStaleHours": 24
+}
