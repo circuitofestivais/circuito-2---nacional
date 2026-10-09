@@ -42,11 +42,12 @@ export class SupabaseFestivalRepository implements FestivalRepository {
 
   async signInWithGitHub() {
     const client = requireClient();
-    const redirectTo = `${window.location.origin}${window.location.pathname}#admin`;
+    const redirectUrl = new URL(window.location.pathname, window.location.origin);
+    redirectUrl.searchParams.set("oauth", "github");
     const { error } = await client.auth.signInWithOAuth({
       provider: "github",
       options: {
-        redirectTo,
+        redirectTo: redirectUrl.toString(),
         scopes: "read:user",
       },
     });

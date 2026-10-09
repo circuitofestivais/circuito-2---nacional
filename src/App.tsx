@@ -4,14 +4,19 @@ import { PublicPage } from "./pages/PublicPage";
 import { fetchSnapshot, loadPublicData } from "./lib/catalog";
 import type { CatalogPayload, PublicDataState } from "./types";
 
+function currentRoute() {
+  const oauthCallback = new URLSearchParams(window.location.search).get("oauth") === "github";
+  return window.location.hash === "#admin" || oauthCallback ? "admin" : "public";
+}
+
 export default function App() {
-  const [route, setRoute] = useState(window.location.hash === "#admin" ? "admin" : "public");
+  const [route, setRoute] = useState(currentRoute);
   const [catalog, setCatalog] = useState<CatalogPayload | null>(null);
   const [dataState, setDataState] = useState<PublicDataState | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const updateRoute = () => setRoute(window.location.hash === "#admin" ? "admin" : "public");
+    const updateRoute = () => setRoute(currentRoute());
     window.addEventListener("hashchange", updateRoute);
     return () => window.removeEventListener("hashchange", updateRoute);
   }, []);

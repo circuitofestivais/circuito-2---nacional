@@ -80,6 +80,12 @@ export function AdminPage({ catalog }: { catalog: CatalogPayload }) {
         setPhase("denied");
         return;
       }
+      const callbackUrl = new URL(window.location.href);
+      if (callbackUrl.searchParams.get("oauth") === "github") {
+        callbackUrl.searchParams.delete("oauth");
+        callbackUrl.hash = "admin";
+        window.history.replaceState({}, "", callbackUrl);
+      }
       if (isE2EMode) await repository.seed(catalog.records);
       await loadRecords();
       setPhase("ready");
