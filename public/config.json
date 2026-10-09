@@ -1,6 +1,6 @@
 {
-  "supabaseUrl": "",
-  "supabasePublishableKey": "",
+  "supabaseUrl": "https://fqyickqjdeiwdoejwnwd.supabase.co",
+  "supabasePublishableKey": "sb_publishable_ePbb2nMjnoKp8c5Ye50Uvg_lwq8IADW",
   "cacheTtlMinutes": 15,
   "maxStaleHours": 24
 }
